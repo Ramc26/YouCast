@@ -1,100 +1,88 @@
+# YouCast📻
+**Download YouTube audio or 4K video in style—right from your browser.**
 
-# 📻YouCast - YouTube Audio Downloader
+_Blast your favorite tracks. Binge your playlists. All offline, all easy, and all super smooth._
 
-YouCast is a super chill, user-friendly web app built with Streamlit that lets you grab audio from YouTube videos and playlists. It’s clean, powerful, and gives you real-time feedback — all without needing any annoying API keys.  
-
----
-
-## ✨ How YouCast Came to Life
-
-So here’s the story 😄:  
-
-One day I was traveling and needed some podcasts from YouTube. Yes, I know, not exactly ethical and kinda illegal, but I had no other choice. I tried some online sites… ads everywhere, pop-ups everywhere, download speed slower than a snail, conversion taking ages… ugh!  
-
-Then I sat at my desk, took **1 hour of my “professional time”** for personal mischief, ran `uv init`, and **Bhaaaam!** — in the next 68 minutes I had a working tool exactly how I wanted it. Fast, clean, and frustration-free.  
-
-And that’s how **YouCast** was born. 🎧✨  
-
----
+***
 ## 🖼️ App Preview
+![YouCast Screenshot](https://raw.githubusercontent.com/ramc26/YouCast/main/assets/app_previewV2.png)
 
-![YouCast Screenshot](https://raw.githubusercontent.com/ramc26/YouCast/main/assets/app_preview.png)
+## 🚀 What’s This?
+YouCast is a user-friendly web app for downloading YouTube audio (MP3, M4A, WAV—you name it!) and high-quality videos with just a couple of clicks. Full playlist support, shiny UI, live progress bars, and easy peasy downloads straight to your desktop.
 
-## ✨ Key Features
 
-- **Multiple Formats:** Download audio in MP3, M4A, WEBM, or WAV.  
-- **Quality Selection:** Pick your audio quality from 128, 192, 256, to 320 kbps.  
-- **Batch Downloading:** Paste multiple YouTube URLs (one per line) to download them all in one go.  
-- **Playlist Support:** Grab audio from an entire YouTube playlist in one click.  
-- **Real-Time Progress:** Progress bars for each file and overall batch.  
-- **In-App Previews:** Listen to the downloaded audio directly in the app.  
-- **Error Handling:** Handles invalid URLs or download hiccups gracefully.  
-- **Custom Download Location:** Save files exactly where you want.  
-- **No API Keys Needed:** Works out-of-the-box using yt-dlp.  
+## 🌈 Features
+- Download audio (MP3, M4A, WAV, WEBM) or video (up to 4K!) from YouTube.
+- Single video or whole playlists? Both, of course!
+- Choose your format and quality—takes all the guesswork out of saving files.
+- Handy progress bars and download history, so you’re never lost.
+- Beautiful, modern, and responsive design powered by Streamlit.
+- No duplicate files—history stays clean.
+- All downloads auto-organize to your chosen folder.
+- Works right out of the browser—zero command-line headaches.
 
----
 
-## 🛠️ Setup & Installation
+## ⚡️ Quickstart: Get Rolling
+**You’ll need:**  
+- Python 3.8+  
+- `uv` package manager  
+- `ffmpeg` installed (for audio/video conversion)
 
-### 1. Prerequisites
-- **Python 3.10+**  
-- **FFmpeg:** Required for audio conversion.
-
-**Install FFmpeg:**  
-- **Windows:** Download from the official [FFmpeg website](https://ffmpeg.org/) and add the bin folder to PATH.  
-- **macOS (Homebrew):** `brew install ffmpeg`  
-- **Linux (apt):** `sudo apt-get install ffmpeg`  
-
-### 2. Install Packages Using `uv-astral`
-This repo contains a `pyproject.toml` file, so you can use `uv` to install dependencies and sync everything effortlessly:
-
+### 1. Clone the App
+```bash
+git clone https://github.com/ramc26/youcast.git
+cd youcast
 ```
-uv sync --active
+
+### 2. Install the Goods (with uv!)
+```bash
+uv pip install -r pyproject.toml
 ```
-No need for pip install manually — `uv` takes care of it. ✅
+If you usually use `poetry` or another tool for `pyproject.toml`, run:
+```bash
+uv venv
+uv pip install -r pyproject.toml
+```
+This pulls in Streamlit, yt-dlp, humanize, and anything else this app needs—all straight from the `pyproject.toml`. No `requirements.txt` drama!
 
----
+**Make sure** ffmpeg is in your system PATH for audio conversion.
 
-## 🚀 How to Run the App
-
-1. Save the application code as `app.py`.
-2. Open terminal/command prompt.
-3. Navigate to the folder where you saved the file.
-4. Run:
-
+### 3. Run the Magic
 ```bash
 streamlit run app.py
 ```
+(Not using `app.py`? Replace with your file name.)
 
-Your browser will pop up with YouCast ready to go.
+The app should pop open in your browser.  
+Dance break! 💃🕺
 
----
 
-## 📝 How to Use
 
-1. **Configure Settings:** Use the sidebar to choose audio format, quality, and download mode (single video or playlist).
-2. **Set Download Location:** Pick a folder where your files will live.
-3. **Enter URLs:** Paste one or more YouTube links.
-4. **Start Download:** Hit “Start Download” and watch the progress bars.
-5. **Preview & Save:** Once finished, see your downloaded files in a list. Play them in-app or click download to save to your computer.
+## 🎮 How to Use
+1. Paste your YouTube links (one per line—video or playlist, mix as much as you want).
+2. Pick what you want: Audio or Video, formats, and quality in the sidebar.
+3. Decide: Single video or grab the whole playlist.
+4. Set the download folder (default: `downloads`).
+5. Smash that “Start Download” button and let the app do the heavy lifting!
+6. Download your files from the history below. Play them right there—or snag them to your machine.
 
----
+Need to clear the download list? Hit the trash can!
 
-## 🧑‍💻 Developer
 
-* Designed & Developed by: **Ram Bikkina🦉**
-* Portfolio: [RamTechSuite](https://ramtechsuite.com)
 
----
+## 🐞 Troubleshooting
+- **Missing ffmpeg?** Make sure it’s installed and in your PATH.
+- **Weird error on download?** Chill for a sec and try again—yt-dlp and YouTube like to change things up.
+- **Download button not showing?** Chrome loves you—just refresh.
 
-## ⚠️ License / Usage
 
-No license here 😎.
-This means: **don’t copy, don’t steal, don’t blame me if you misuse it**. Use it for fun, learn from it, or just geek out like me.
 
-Basically: free to use for personal chaos, not free to copy the code. 🛑
+## 🦉 Author & Credits
+Made with ☕ + 🎧 by **Ram Bikkina 🦉**  
+If you love this, check out [RamTechSuite Portfolio](https://ramc26.github.io/RamTechSuite).
 
----
+***
 
-Enjoy your music and podcasts the YouCast way! 🎶
----
+**Now go grab those tunes and videos!**  
+PS: This is for personal use—respect copyright and all that jazz.
+

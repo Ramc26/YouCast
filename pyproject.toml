@@ -1,11 +1,50 @@
 [project]
 name = "youcast"
-version = "0.1.0"
-description = "Add your description here"
+version = "2.0.0"
+description = "A sleek YouTube audio and video downloader with a beautiful web interface"
 readme = "README.md"
 requires-python = ">=3.13"
+authors = [
+    { name = "Ram Bikkina", email = "itsrambikkina@gmail.com" }
+]
+keywords = ["youtube", "downloader", "audio", "video", "streamlit", "mp3", "mp4"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Internet :: WWW/HTTP"
+]
+
 dependencies = [
     "humanize>=4.13.0",
     "streamlit>=1.49.1",
+    "watchdog>=6.0.0",
     "yt-dlp>=2025.9.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/ramc26/youcast"
+Documentation = "https://github.com/ramc26/youcast#readme"
+Repository = "https://github.com/ramc26/youcast"
+Issues = "https://github.com/ramc26/youcast/issues"
+
+[project.scripts]
+youcast = "app:main"
+
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
 ]
