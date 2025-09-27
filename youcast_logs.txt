@@ -1,0 +1,4 @@
+2025-09-27 09:49:51,412 | INFO | User requested download for URLs: ['https://www.youtube.com/watch?v=fc3EIAC--bU']
+2025-09-27 09:49:51,469 | INFO | Attempt 1: Starting download for https://www.youtube.com/watch?v=fc3EIAC--bU
+2025-09-27 09:49:54,859 | INFO | Download succeeded for https://www.youtube.com/watch?v=fc3EIAC--bU
+2025-09-27 09:49:54,860 | INFO | Batch download completed

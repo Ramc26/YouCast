@@ -24,9 +24,9 @@ classifiers = [
 
 dependencies = [
     "humanize>=4.13.0",
-    "streamlit>=1.49.1",
+    "streamlit>=1.49.1", 
     "watchdog>=6.0.0",
-    "yt-dlp>=2025.9.5",
+    "yt-dlp>=2025.9.26",
 ]
 
 [project.urls]
@@ -48,3 +48,7 @@ dev-dependencies = [
     "black>=23.0.0",
     "ruff>=0.1.0",
 ]
+
+[tool.setuptools]
+packages = []
+py-modules = ["app"]

@@ -15,6 +15,7 @@ MIME_TYPES = {
     "m4a": "audio/mp4",
     "wav": "audio/wav",
     "webm": "audio/webm",
+    "mp4": "video/mp4",
 }
 
 # --- Streamlit Page Config ---
@@ -25,7 +26,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Custom CSS for Styling ---
+# --- Custom CSS ---
 st.markdown("""
 <style>
     .main-header {
@@ -46,31 +47,8 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         margin-bottom: 1.5rem;
     }
-    .sidebar .sidebar-content {
-        background-color: #f8f9fa;
-    }
-    .stButton>button {
-        width: 100%;
-        border-radius: 5px;
-        font-weight: bold;
-    }
     .file-item {
-        # background-color: #f8f9fa;
-        # border-radius: 10px;
         padding: 0.5rem;
-        # margin-bottom: 1rem;
-        # border-left: 4px solid #1f77b4;
-    }
-    .progress-bar {
-        height: 8px;
-        border-radius: 4px;
-    }
-    .success-box {
-        background-color: #d4edda;
-        color: #155724;
-        padding: 1rem;
-        border-radius: 5px;
-        margin: 1rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -79,65 +57,21 @@ st.markdown("""
 st.markdown('<h1 class="main-header">YouCast</h1>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">Download YouTube Audio or 4K Video ⚡</p>', unsafe_allow_html=True)
 
-# --- Sidebar Settings ---
+# --- Sidebar ---
 with st.sidebar:
     st.markdown("## ⚙️ Settings")
-    
-    st.markdown("---")
-    st.markdown("### 📥 Download Type")
-    download_type = st.radio(
-        "Download Type",
-        ["Audio", "Video"],
-        index=0,
-        label_visibility="collapsed"
-    )
+
+    download_type = st.radio("Download Type", ["Audio", "Video"], index=0)
 
     if download_type == "Audio":
-        st.markdown("### 🎶 Audio Format")
-        format_choice = st.selectbox(
-            "Choose audio format",
-            ["mp3", "m4a", "webm", "wav"],
-            index=0,
-            help="MP3 is recommended for wide compatibility.",
-            label_visibility="collapsed"
-        )
-
-        st.markdown("### 🎚️ Audio Quality")
-        quality = st.selectbox(
-            "Audio Quality (kbps)",
-            ["128", "192", "256", "320"],
-            index=1,
-            help="Higher quality results in larger file sizes.",
-            label_visibility="collapsed"
-        )
+        format_choice = st.selectbox("Audio Format", ["mp3", "m4a", "webm", "wav"], index=0)
+        quality = st.selectbox("Audio Quality (kbps)", ["128", "192", "256", "320"], index=1)
     else:
         format_choice = "mp4"
-        st.markdown("### 🎚️ Video Quality")
-        quality = st.selectbox(
-            "Video Quality",
-            ["144", "240", "360", "480", "720", "1080", "1440", "2160"],
-            index=6,
-            help="Higher quality = larger file size. 2160 = 4K",
-            label_visibility="collapsed"
-        )
+        quality = st.selectbox("Video Quality", ["144", "240", "360", "480", "720", "1080", "1440", "2160"], index=6)
 
-    st.markdown("---")
-    st.markdown("### 📺 Download Mode")
-    download_mode = st.radio(
-        "Download Mode",
-        ["Single Video", "Whole Playlist"],
-        index=0,
-        label_visibility="collapsed"
-    )
-
-    st.markdown("---")
-    st.markdown("### 📂 Download Location")
-    folder_path = st.text_input(
-        "Enter a folder path:",
-        "downloads",
-        help="The folder where your files will be saved. It will be created if it doesn't exist.",
-        label_visibility="collapsed"
-    )
+    download_mode = st.radio("Download Mode", ["Single Video", "Whole Playlist"], index=0)
+    folder_path = st.text_input("Download Folder", "downloads")
     Path(folder_path).mkdir(parents=True, exist_ok=True)
 
     st.markdown("---")
@@ -157,14 +91,75 @@ with st.sidebar:
 if "downloaded_items" not in st.session_state:
     st.session_state.downloaded_items = []
 
-# --- Main Download UI ---
+# --- Progress Hooks ---
+def progress_hook(d):
+    if d["status"] == "downloading":
+        total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
+        downloaded = d["downloaded_bytes"]
+        if total:
+            progress = downloaded / total
+            st.session_state.current_progress.progress(progress, text=f"Downloading: {progress*100:.1f}%")
+    elif d["status"] == "finished":
+        st.session_state.current_progress.progress(1.0, text="Processing completed")
+
+def postprocessor_hook(d):
+    if d["status"] == "finished":
+        file_info = {
+            "path": d["info_dict"]["filepath"],
+            "title": d["info_dict"].get("title", os.path.basename(d["info_dict"]["filepath"])),
+        }
+        st.session_state.processed_files.append(file_info)
+
+# --- Robust Fallback Downloader ---
+def download_with_fallback(url, download_type, folder_path, format_choice="mp3", quality="192"):
+    safe_formats = []
+
+    if download_type == "Audio":
+        safe_formats = [
+            ("bestaudio/best", format_choice),
+            ("best", format_choice),
+        ]
+    else:  # Video
+        safe_formats = [
+            ("bv*+ba/b", "mp4"),
+            ("bestvideo+bestaudio/best", "mp4"),
+            ("best", "mp4"),
+        ]
+
+    last_error = None
+    for fmt, container in safe_formats:
+        ydl_opts = {
+            "format": fmt,
+            "outtmpl": os.path.join(folder_path, "%(title)s.%(ext)s"),
+            "progress_hooks": [progress_hook],
+            "postprocessor_hooks": [postprocessor_hook],
+            "noplaylist": download_mode == "Single Video",
+            "quiet": True,
+            "noprogress": True,
+        }
+
+        if download_type == "Audio":
+            ydl_opts["postprocessors"] = [{
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": container,
+                "preferredquality": quality,
+            }]
+        else:
+            ydl_opts["merge_output_format"] = container
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+            return True
+        except Exception as e:
+            last_error = e
+            continue
+
+    raise RuntimeError(f"All fallback attempts failed for {url}. Last error: {last_error}")
+
+# --- Main UI ---
 st.markdown("## 🔗 YouTube URLs")
-urls_input = st.text_area(
-    "Enter YouTube URLs (one per line)",
-    placeholder="https://www.youtube.com/watch?v=...\nhttps://www.youtube.com/playlist?list=...",
-    height=150,
-    label_visibility="collapsed"
-)
+urls_input = st.text_area("Enter URLs", placeholder="https://www.youtube.com/watch?v=...\n...", height=150)
 
 download_btn = st.button("🎬 Start Download", type="primary", use_container_width=True)
 
@@ -177,134 +172,50 @@ if download_btn and urls_input:
     else:
         with st.status("Downloading files...", expanded=True) as status:
             overall_progress_bar = st.progress(0.0, text="Overall Progress")
-            
+
             for i, url in enumerate(urls):
                 status.update(label=f"Processing URL {i+1}/{len(urls)}: {url[:50]}...")
-                
-                progress_bar = st.progress(0, text="Download Progress")
-                time_placeholder = st.empty()
-                
-                processed_files_for_url = []
-                start_time = time.time() 
-
-                def progress_hook(d):
-                    if d["status"] == "downloading":
-                        total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
-                        downloaded = d["downloaded_bytes"]
-
-                        if total:
-                            progress = downloaded / total
-                            progress_bar.progress(progress, text=f"Downloading: {progress*100:.1f}%")
-
-                            elapsed = time.time() - start_time
-                            if downloaded > 0 and elapsed > 0:
-                                speed = downloaded / elapsed
-                                remaining = (total - downloaded) / speed if speed > 0 else 0
-                                time_placeholder.text(
-                                    f"⏱️ Elapsed: {elapsed:.1f}s | ⏳ ETA: {remaining:.1f}s | 📊 Speed: {humanize.naturalsize(speed)}/s"
-                                )
-
-                    elif d["status"] == "finished":
-                        progress_bar.progress(1.0, text="Processing completed")
-
-                def postprocessor_hook(d):
-                    if d["status"] == "finished":
-                        file_info = {
-                            "path": d["info_dict"]["filepath"],
-                            "title": d["info_dict"].get(
-                                "title", os.path.basename(d["info_dict"]["filepath"])
-                            ),
-                        }
-                        processed_files_for_url.append(file_info)
-
-                # --- yt-dlp Options ---
-                if download_type == "Audio":
-                    ydl_opts = {
-                        "format": "bestaudio/best",
-                        "outtmpl": os.path.join(folder_path, "%(title)s.%(ext)s"),
-                        "progress_hooks": [progress_hook],
-                        "postprocessor_hooks": [postprocessor_hook],
-                        "postprocessors": [
-                            {
-                                "key": "FFmpegExtractAudio",
-                                "preferredcodec": format_choice,
-                                "preferredquality": quality,
-                            }
-                        ],
-                        "noplaylist": download_mode == "Single Video",
-                        "quiet": True,
-                        "noprogress": True,
-                    }
-                else:  # Video
-                    ydl_opts = {
-                        "format": f"bestvideo[height<={quality}]+bestaudio/best",
-                        "merge_output_format": "mp4",
-                        "outtmpl": os.path.join(folder_path, "%(title)s.%(ext)s"),
-                        "progress_hooks": [progress_hook],
-                        "postprocessor_hooks": [postprocessor_hook],
-                        "noplaylist": download_mode == "Single Video",
-                        "quiet": True,
-                        "noprogress": True,
-                    }
+                st.session_state.current_progress = st.progress(0, text="Download Progress")
+                st.session_state.processed_files = []
 
                 try:
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        ydl.download([url])
+                    download_with_fallback(url, download_type, folder_path, format_choice, quality)
 
-                    for file_info in processed_files_for_url:
-                        # Check if this file is already in the downloaded items
-                        file_already_exists = any(
-                            item["path"] == file_info["path"] for item in st.session_state.downloaded_items
-                        )
-                        
-                        if not file_already_exists:
-                            st.session_state.downloaded_items.append(
-                                {
-                                    "title": file_info["title"],
-                                    "path": file_info["path"],
-                                    "size": get_file_size(file_info["path"]),
-                                    "format": format_choice,
-                                    "type": download_type,
-                                }
-                            )
-                    
+                    for file_info in st.session_state.processed_files:
+                        if not any(item["path"] == file_info["path"] for item in st.session_state.downloaded_items):
+                            st.session_state.downloaded_items.append({
+                                "title": file_info["title"],
+                                "path": file_info["path"],
+                                "size": get_file_size(file_info["path"]),
+                                "format": format_choice,
+                                "type": download_type,
+                            })
+
                     st.success(f"✅ Successfully downloaded: {url[:50]}...")
-                    
-                except yt_dlp.utils.DownloadError as e:
-                    st.error(f"❌ Failed to download from {url}.\nReason: {str(e).split(':')[-1].strip()}")
                 except Exception as e:
-                    st.error(f"❌ An unexpected error occurred with URL {url}: {e}")
+                    st.error(f"❌ Failed for {url}: {e}")
                 finally:
-                    progress_bar.empty()
-                    time_placeholder.empty()
-                    overall_progress_bar.progress((i + 1) / len(urls), text=f"Overall Progress: {((i + 1) / len(urls))*100:.1f}%")
+                    overall_progress_bar.progress((i + 1) / len(urls), text=f"Overall Progress: {((i+1)/len(urls))*100:.1f}%")
 
             status.update(label="✅ All downloads complete!", state="complete")
 
-# --- Display Downloaded Files ---
+# --- Display Files ---
 if st.session_state.downloaded_items:
     st.markdown("---")
     st.markdown("## 📂 Downloaded Files")
-    
-    # Debug info (you can remove this after testing)
-    st.caption(f"Found {len(st.session_state.downloaded_items)} items in history")
-    
+
     col1, col2 = st.columns([3, 1])
     with col2:
         if st.button("🗑️ Clear History", use_container_width=True):
             st.session_state.downloaded_items.clear()
             st.rerun()
 
-    # Use a set to track displayed files and avoid duplicates
     displayed_files = set()
-    
     for idx, item in enumerate(st.session_state.downloaded_items):
-        # Skip if we've already displayed this file
         if item["path"] in displayed_files:
             continue
-            
         displayed_files.add(item["path"])
-        
+
         try:
             with open(item["path"], "rb") as f:
                 file_bytes = f.read()
@@ -313,25 +224,22 @@ if st.session_state.downloaded_items:
                 st.audio(file_bytes, format=MIME_TYPES.get(item["format"]))
             else:
                 st.video(item["path"])
+
             st.markdown(f"""
-                            <div class="file-item">
-                                <h4>{item['title']}</h4>
-                                <p>Format: {item['format'].upper()} | Size: {item['size']} | Type: {item['type']}</p>
-                            </div>
-                        """,
-                        unsafe_allow_html=True)
+                <div class="file-item">
+                    <h4>{item['title']}</h4>
+                    <p>Format: {item['format'].upper()} | Size: {item['size']} | Type: {item['type']}</p>
+                </div>
+            """, unsafe_allow_html=True)
+
             st.download_button(
                 label="⬇️ Download File",
                 data=file_bytes,
                 file_name=os.path.basename(item["path"]),
                 mime=MIME_TYPES.get(item["format"], "video/mp4"),
-                key=f"download_btn_{idx}_{item['path']}",  # More unique key
+                key=f"download_btn_{idx}_{item['path']}",
                 use_container_width=True
             )
-            
-        except FileNotFoundError:
-            st.error(f"File not found: {item['path']}")
         except Exception as e:
-            st.error(f"Could not load file {item['title']}: {e}")
-            
+            st.error(f"Could not load {item['title']}: {e}")
         st.markdown("---")
