@@ -20,8 +20,8 @@ MIME_TYPES = {
 
 # --- Streamlit Page Config ---
 st.set_page_config(
-    page_title="YouCast - YouTube Audio & Video Downloader", 
-    page_icon="📻", 
+    page_title="YouCast - YouTube Audio & Video Downloader",
+    page_icon="📻",
     layout="centered",
     initial_sidebar_state="expanded"
 )
@@ -96,7 +96,7 @@ def progress_hook(d):
     if d["status"] == "downloading":
         total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
         downloaded = d["downloaded_bytes"]
-        if total:
+        if total > 0:
             progress = downloaded / total
             st.session_state.current_progress.progress(progress, text=f"Downloading: {progress*100:.1f}%")
     elif d["status"] == "finished":
@@ -112,6 +112,10 @@ def postprocessor_hook(d):
 
 # --- Robust Fallback Downloader ---
 def download_with_fallback(url, download_type, folder_path, format_choice="mp3", quality="192"):
+    """
+    Attempts to download media using several format fallbacks and includes
+    options to bypass common HTTP 403 errors on hosted services.
+    """
     safe_formats = []
 
     if download_type == "Audio":
@@ -136,6 +140,17 @@ def download_with_fallback(url, download_type, folder_path, format_choice="mp3",
             "noplaylist": download_mode == "Single Video",
             "quiet": True,
             "noprogress": True,
+            # --- Changes to bypass blocking ---
+            # Use a common browser user-agent to avoid being identified as a bot.
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+            },
+            # Force requests to use IPv4, which can sometimes resolve connection issues.
+            "force_ipv4": True,
+            # For debugging, you can uncomment the next line to get detailed logs
+            # 'verbose': True,
         }
 
         if download_type == "Audio":
@@ -150,16 +165,18 @@ def download_with_fallback(url, download_type, folder_path, format_choice="mp3",
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
-            return True
+            return True  # Success
         except Exception as e:
             last_error = e
+            st.warning(f"Download attempt failed with format '{fmt}'. Trying next fallback... Error: {e}")
             continue
 
+    # If all fallbacks fail, raise the last encountered error
     raise RuntimeError(f"All fallback attempts failed for {url}. Last error: {last_error}")
 
 # --- Main UI ---
 st.markdown("## 🔗 YouTube URLs")
-urls_input = st.text_area("Enter URLs", placeholder="https://www.youtube.com/watch?v=...\n...", height=150)
+urls_input = st.text_area("Enter one or more YouTube URLs (one per line)", placeholder="https://www.youtube.com/watch?v=...\nhttps://www.youtube.com/playlist?list=...", height=150)
 
 download_btn = st.button("🎬 Start Download", type="primary", use_container_width=True)
 
@@ -175,7 +192,7 @@ if download_btn and urls_input:
 
             for i, url in enumerate(urls):
                 status.update(label=f"Processing URL {i+1}/{len(urls)}: {url[:50]}...")
-                st.session_state.current_progress = st.progress(0, text="Download Progress")
+                st.session_state.current_progress = st.progress(0, text="Initializing...")
                 st.session_state.processed_files = []
 
                 try:
@@ -191,13 +208,13 @@ if download_btn and urls_input:
                                 "type": download_type,
                             })
 
-                    st.success(f"✅ Successfully downloaded: {url[:50]}...")
+                    st.success(f"✅ Successfully processed: {url[:50]}...")
                 except Exception as e:
-                    st.error(f"❌ Failed for {url}: {e}")
+                    st.error(f"❌ Failed to download {url}. Reason: {e}")
                 finally:
                     overall_progress_bar.progress((i + 1) / len(urls), text=f"Overall Progress: {((i+1)/len(urls))*100:.1f}%")
 
-            status.update(label="✅ All downloads complete!", state="complete")
+            status.update(label="✅ All downloads complete!", state="complete", expanded=False)
 
 # --- Display Files ---
 if st.session_state.downloaded_items:
@@ -220,11 +237,6 @@ if st.session_state.downloaded_items:
             with open(item["path"], "rb") as f:
                 file_bytes = f.read()
 
-            if item["type"] == "Audio":
-                st.audio(file_bytes, format=MIME_TYPES.get(item["format"]))
-            else:
-                st.video(item["path"])
-
             st.markdown(f"""
                 <div class="file-item">
                     <h4>{item['title']}</h4>
@@ -232,14 +244,21 @@ if st.session_state.downloaded_items:
                 </div>
             """, unsafe_allow_html=True)
 
+            if item["type"] == "Audio":
+                st.audio(file_bytes, format=MIME_TYPES.get(item["format"]))
+            else:
+                st.video(file_bytes, format=MIME_TYPES.get(item["format"]))
+
             st.download_button(
                 label="⬇️ Download File",
                 data=file_bytes,
                 file_name=os.path.basename(item["path"]),
-                mime=MIME_TYPES.get(item["format"], "video/mp4"),
+                mime=MIME_TYPES.get(item["format"], "application/octet-stream"),
                 key=f"download_btn_{idx}_{item['path']}",
                 use_container_width=True
             )
+            st.markdown("---")
+        except FileNotFoundError:
+            st.error(f"Could not find file: {item['title']}. It may have been moved or deleted.")
         except Exception as e:
             st.error(f"Could not load {item['title']}: {e}")
-        st.markdown("---")
